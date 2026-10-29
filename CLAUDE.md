@@ -19,6 +19,8 @@ built as a Python extension module with **maturin + PyO3**.
 - mechaphlowers is a plain **clone** of `phlowers/mechaphlowers` in `vendor/mechaphlowers/`,
   used only for testing, profiling and benchmarking.
 - `vendor/` is git-ignored: **mechaphlowers code is never pushed** to this repo.
+- Clone/update it with `scripts/setup_vendor.sh` (pinned commit). It is installed editable in
+  the uv env as a `dev` dependency.
 - mechaphlowers is MPL-2.0: any file ported/derived from it must keep the MPL-2.0 header.
 
 ### Build

@@ -17,3 +17,14 @@
 - Release profile uses fat LTO + `codegen-units = 1` (slower builds, faster code for benchmarks).
 - First function `catenary_z` (z = p·(cosh(x/p) − 1)) was chosen as a numpy-in/numpy-out
   example close to mechaphlowers' domain.
+- Rust edition: `2024` (cargo 1.99.1 does not support `2026`).
+
+## 2026-10-30 — mechaphlowers integration
+- mechaphlowers is installed as an editable `dev` dependency through `[tool.uv.sources]`
+  path `vendor/mechaphlowers`. `scripts/setup_vendor.sh` clones it at a pinned commit
+  (`fbce4fe`, v0.13.2) so results are reproducible. Bump the pin deliberately.
+- Consequence: `uv sync` needs `vendor/` to exist, so run the script first after a fresh clone.
+- uv locked the env even though mechaphlowers declares `<3.14` and mphlowrs `<3.15`
+  (path sources are not range-checked the same way). Running on 3.14+ remains untested.
+- First real port: `CatenarySpan.z_many_points` → `catenary_z_many_points`, validated
+  against mechaphlowers on a 4-span section.

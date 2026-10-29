@@ -1,6 +1,8 @@
 use numpy::{IntoPyArray, PyArray1, PyReadonlyArray1};
 use pyo3::prelude::*;
 
+mod span;
+
 /// Version of the compiled extension.
 #[pyfunction]
 fn version() -> &'static str {
@@ -23,5 +25,6 @@ fn catenary_z<'py>(
 fn _mphlowrs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(version, m)?)?;
     m.add_function(wrap_pyfunction!(catenary_z, m)?)?;
+    m.add_function(wrap_pyfunction!(span::catenary_z_many_points, m)?)?;
     Ok(())
 }

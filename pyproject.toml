@@ -11,11 +11,19 @@ dynamic = ["version"]
 dependencies = ["numpy>=2.2.5,<3"]
 
 [dependency-groups]
-dev = ["maturin>=1.16,<2", "pytest>=8"]
+dev = [
+    "maturin>=1.16,<2",
+    "pytest>=8",
+    # Local clone in vendor/ (see scripts/setup_vendor.sh), never pushed.
+    "mechaphlowers",
+]
 
 [tool.maturin]
 python-source = "python"
 module-name = "mphlowrs._mphlowrs"
+
+[tool.uv.sources]
+mechaphlowers = { path = "vendor/mechaphlowers", editable = true }
 
 [tool.uv]
 # Rebuild the extension on `uv sync` / `uv run` when Rust sources change.

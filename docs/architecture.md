@@ -5,7 +5,9 @@ mphlowrs/
 ├── CLAUDE.md              # constraints for Claude
 ├── Cargo.toml             # Rust crate, lib `_mphlowrs` (cdylib), release LTO
 ├── pyproject.toml         # maturin build backend, uv dev env
-├── src/lib.rs             # PyO3 extension module `mphlowrs._mphlowrs`
+├── src/lib.rs             # PyO3 extension module `mphlowrs._mphlowrs` (registers functions)
+├── src/<module>.rs        # ports, one Rust file per mechaphlowers module (e.g. span.rs)
+├── scripts/setup_vendor.sh  # clones mechaphlowers into vendor/ at the pinned commit
 ├── python/mphlowrs/       # Python package: __init__.py re-exports, .pyi stubs, py.typed
 ├── tests/                 # pytest: smoke + comparisons against mechaphlowers
 ├── benches/               # profiling / benchmark scripts
@@ -28,3 +30,12 @@ new NumPy arrays (`into_pyarray`).
 mechaphlowers is installed in editable mode from `vendor/` into the same uv environment as
 `mphlowrs`. Tests call a mechaphlowers function and its Rust equivalent on the same inputs
 and compare the results with `numpy.testing.assert_allclose`.
+
+Conventions for ports:
+- The Rust file mirrors the mechaphlowers module (`span.py` → `src/span.rs`) and keeps the
+  MPL-2.0 header with a "Derived from …" line.
+- Function name: `<model>_<method>`, e.g. `CatenarySpan.z_many_points` →
+  `catenary_z_many_points`.
+- Shape/validity errors are raised as `ValueError`.
+- One test file per mechaphlowers module: `tests/test_mechaphlowers_<module>.py`, which uses
+  `pytest.importorskip` on the mechaphlowers module.
