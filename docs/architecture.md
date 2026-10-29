@@ -10,7 +10,8 @@ mphlowrs/
 ├── scripts/setup_vendor.sh  # clones mechaphlowers into vendor/ at the pinned commit
 ├── python/mphlowrs/       # Python package: __init__.py re-exports, .pyi stubs, py.typed
 ├── tests/                 # pytest: smoke + comparisons against mechaphlowers
-├── benches/               # profiling / benchmark scripts
+├── benches/               # scenarios.py, profile_balance.py, experiments/ (monkeypatch tests)
+├── profiles/              # .prof outputs (git-ignored)
 ├── docs/                  # this wiki
 └── vendor/mechaphlowers/  # upstream clone, git-ignored
 ```

@@ -28,3 +28,13 @@
   (path sources are not range-checked the same way). Running on 3.14+ remains untested.
 - First real port: `CatenarySpan.z_many_points` → `catenary_z_many_points`, validated
   against mechaphlowers on a 4-span section.
+
+## 2026-10-30 — First profiling round (BalanceEngine.solve_change_state)
+- Profiling harness lives in `benches/` (cProfile + timeit, no extra dependencies).
+  Optimisations are first tested as **monkeypatch experiments** in `benches/experiments/`
+  so the mechaphlowers clone stays untouched.
+- Results (see profiling.md): the dominant cost is algorithmic (dense finite-difference
+  Jacobian, O(n²)), not raw computation. Rule adopted: **fix algorithmic and Python-level
+  issues first, then port to Rust what remains hot**. Otherwise the Rust speedup is
+  measured against a baseline that is easy to beat in Python.
+- No Rust code written this round. Pending a decision on the upstream fixes.
