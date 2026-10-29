@@ -1,0 +1,19 @@
+[package]
+name = "mphlowrs"
+version = "0.1.0"
+edition = "2026"
+license = "MPL-2.0"
+description = "Rust acceleration experiments for mechaphlowers"
+publish = false
+
+[lib]
+name = "_mphlowrs"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.30.1", features = ["extension-module"] }
+numpy = "0.30.0"
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
