@@ -38,3 +38,48 @@
   issues first, then port to Rust what remains hot**. Otherwise the Rust speedup is
   measured against a baseline that is easy to beat in Python.
 - No Rust code written this round. Pending a decision on the upstream fixes.
+
+## 2026-10-30 — Upstream Python fixes (round 1, option "a")
+- The fixes live in the vendor clone (working tree, on local branch `perf/mphlowrs-round1`
+  at `fbce4fe`, no commits). Superseded by the patch-stack workflow below.
+- **numpy pinned to 2.2.5** (`[tool.uv] constraint-dependencies`), matching upstream's
+  `uv.lock`. With numpy 2.5.4, 82 upstream tests fail (2-D `np.cross` removed), so the
+  suite cannot serve as a safety net. With 2.2.5, all 865 pass. Upstream issue to report:
+  `numpy>=2.2.5,<3` allows a broken numpy.
+- The banded Jacobian is **opt-in per model** (`IModelForSolver.jacobian_half_bandwidth`,
+  default `None` = dense). Only `BalanceModel` sets it (3, derived from the node/span
+  structure). `LoadModel`, which uses the same `BalanceSolver`, is unchanged.
+- Benchmark scenario fixed: `SectionArray` `load_mass`/`load_position` columns are
+  **ignored** by `BalanceEngine`, so loads must be set with `engine.set_loads(...)`. The first
+  profiling round therefore ran **without loads**. Load masses were reduced to 100–400 kg
+  because 300–1000 kg produced `SuspectedChainReversal` at 50 and 200 supports (in both
+  baseline and fixed code).
+
+## 2026-10-30 — Python pass 1 as a stack of upstream PRs
+- User decisions: **stacked** PRs `refactor/optim-<name>`, **no commits** in vendor
+  (patches + `optim_patches/apply_stack.sh` that the user runs), report
+  `vendor/mechaphlowers/OPTIM_REPORT.md` (not committed), sections ≤ 100 supports.
+- 5 patches: banded jacobian, numpy masks, lazy logging, LoadModel block-diagonal jacobian,
+  explicit cross products. A 6th Python candidate was considered and left out (per-component
+  micro-optimisations of `force_cable`, `find_parameter`, …: 5–10 % each, worse
+  readability). That per-evaluation overhead goes to Rust.
+- Every step is validated like upstream CI: `ruff format --check`, `ruff check` (0.6.1),
+  `mypy .` (1.11.2 **with upstream stub packages** `pandas-stubs`, `plotly-stubs`,
+  `types-requests`, `types-pyyaml`: without them, the unmodified baseline already reports
+  76 errors) and the full pytest suite. **No `-W ignore`**: it hides a warning that
+  `test_duplicated_warning` asserts.
+- `apply_stack.sh` was tested on a throwaway clone in the scratchpad (5 stacked commits
+  created as expected); it never ran on the user's vendor clone.
+- Scripts that swap vendor files must use absolute paths in their exit hook: one
+  interrupted run left the vendor at step 1 because the hook ran from inside `vendor/`.
+
+## 2026-10-30 — Validation against released versions
+- Regression is checked on **outputs**, not just on the test suite: `compare_results.py`
+  compares state vectors and every `get_data_spans()` field, baseline vs stack. Tolerance
+  in practice: ~1e-11 relative (finite-difference rounding).
+- The v0.8.0 release-notes figures came from an uncommitted script. The scenario was rebuilt
+  and judged on whether it reproduces the published v0.7.0 → v0.8.0 **ratios**, not the
+  absolute times (different machine). Old releases run in their own venvs (from a
+  `git worktree` of the vendor clone, in the scratchpad), never in the mphlowrs env.
+- `compare_results.py` skips seed 2: it raises `SuspectedChainReversal` at 100 supports
+  with loads, both before and after the stack.

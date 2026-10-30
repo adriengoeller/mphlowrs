@@ -26,6 +26,9 @@ module-name = "mphlowrs._mphlowrs"
 mechaphlowers = { path = "vendor/mechaphlowers", editable = true }
 
 [tool.uv]
+# Match the numpy version locked by upstream mechaphlowers: numpy >= 2.5 removed 2-D
+# np.cross and breaks 82 upstream tests (see docs/decisions/log.md).
+constraint-dependencies = ["numpy==2.2.5"]
 # Rebuild the extension on `uv sync` / `uv run` when Rust sources change.
 cache-keys = [
     { file = "pyproject.toml" },

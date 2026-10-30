@@ -35,3 +35,16 @@ built as a Python extension module with **maturin + PyO3**.
 
 ## Future constraints
 <!-- Append new constraints given by the user here, with the date. -->
+
+### 2026-10-30 — Optimization workflow (mechaphlowers PRs)
+- Target sizes: sections have **at most 100 supports**. Benchmark 4, 20, 50, 100.
+- Order: Python optimizations first (first pass), **then** Rust optimizations.
+- Each optimization = one PR branch `refactor/optim-<short-description>`, **stacked** on the
+  previous one.
+- **No commits in `vendor/mechaphlowers` either**: deliver one `.patch` per optimization
+  (`vendor/mechaphlowers/optim_patches/NN-<name>.patch`) and a script the user runs to create
+  the branches and commits.
+- Report `vendor/mechaphlowers/OPTIM_REPORT.md` (never committed). For each PR: the
+  bottleneck tackled, the changes, speedup **figures**, complexity of the change, risks for
+  maintainability, and the code/commands to reproduce the measurements.
+- Each step must keep the full upstream test suite green (numpy 2.2.5, see decision log).

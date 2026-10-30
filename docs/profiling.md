@@ -87,10 +87,74 @@ with `logger.isEnabledFor(logging.DEBUG)` or use lazy `%s` arguments, and to def
   on arrays of ~n elements. That per-call overhead is the right target for a Rust
   port: a single fused `update + objective` kernel per evaluation. Re-profile first.
 
+## 2026-10-30 — Python pass 1: upstream patch stack (with loads, ≤ 100 supports)
+
+The first-round numbers above were measured **without loads**: `SectionArray` load
+columns are ignored by `BalanceEngine`, so `scenarios.py` now uses `engine.set_loads()`.
+With loads, the baseline is much worse because the inner `LoadModel` solve also has a dense
+jacobian: **14.9 s per `solve_change_state` at 100 supports**.
+
+Five stacked patches for mechaphlowers, delivered as patches (no commits) in
+`vendor/mechaphlowers/optim_patches/`. Full report (per PR: bottleneck, changes, figures,
+complexity, risks, reproduction) is in `vendor/mechaphlowers/OPTIM_REPORT.md`.
+
+| # | Patch | Main gain @100 supports |
+|---|-------|-------------------------|
+| 01 | banded jacobian (`BalanceModel`, half-bandwidth 3) | adjustment ×23, change state ×22 |
+| 02 | numpy boolean masks | adjustment ×1.49 |
+| 03 | lazy debug logging | change state no loads ×1.41 |
+| 04 | block-diagonal jacobian (`LoadModel`, half-bandwidth 1) | change state with loads ×12.9 |
+| 05 | explicit cross products in `compute_moment` | adjustment ×1.12 |
+
+Whole stack @100 supports: adjustment 1 676 → 43 ms (×39), change state with loads
+14 906 → 50 ms (**×296**), without loads 143 → 6.3 ms (×23). The state checksum is identical
+at every step, and every step passes ruff, mypy and the 865+ upstream tests.
+
+Time is now almost flat in n (36–50 ms from 4 to 100 supports): a constant number of
+evaluations × per-evaluation Python/NumPy overhead. That overhead is the Rust target.
+
+Tooling:
+- `benches/stack_bench.sh`: benchmark steps 0..N of the patch stack (with and without loads).
+- `benches/validate_stack.sh`: per step, upstream CI checks (ruff, mypy + stubs, pytest).
+- `benches/make_patch.sh NN-name`: next stacked patch = worktree minus existing patches.
+- `benches/experiments/*` are first-round monkeypatch prototypes, kept for history (01 and 02
+  are now real patches).
+
+## 2026-10-30 — Stack validation and comparison with v0.8.0
+
+Script: `benches/check_release.sh OUT_DIR`, with `REL_VENVS="v0.7.0=<venv> v0.8.0=<venv>"`
+(one venv per release, created from `git worktree` checkouts with each release's pins).
+It runs `compare_results.py`, upstream `test/benchmark/profile_balance.py`,
+`run_upstream_profiling_tests.py` (skip-marked `test_model_ducloux_profiling.py`) and
+`bench_release_notes.py`, at baseline and full stack.
+
+- **No regression:** 868 upstream tests pass. Over 720 output arrays
+  (`compare_results.py`, 4–100 supports, 3 seeds, with and without loads), the max
+  relative difference vs baseline is 5.6e-12 (`state_vector`) and ≤ 4.2e-13 for tensions,
+  sags and slopes.
+- **Upstream scripts:** `profile_balance.py` 3.89 → 2.85 ms (×1.36, 4 supports, in effect
+  no loads); `test_many_spans` (50 supports) 886 → 134 ms (×6.6).
+- **v0.8.0 release-notes scenario** (rebuilt: uniform 500 m spans, 500 kg loads at 40 %).
+  It reproduces the published v0.7.0 → v0.8.0 ratios within a few points (11 of 12 cases).
+  Stack vs v0.8.0: ×2–×2.4 at 5 spans, ×3.4–×8 at 10 spans, ×9–×391 at 30 spans. Every
+  configuration is ≤ 31 ms after the stack (v0.8.0: up to 11.9 s).
+
+Full tables are in `vendor/mechaphlowers/OPTIM_REPORT.md`, section "Validation of the whole
+stack and comparison with v0.8.0".
+
+Upstream test hygiene, found along the way:
+- `test_load_all_spans_wind_ice_temp_profiling` is broken (stale `CableArray` schema).
+- `test_many_spans_with_load` has no load.
+- `profile_balance.py` loads are ignored.
+
+None of the upstream profiling scripts exercises `LoadModel`.
+
 ## Bottlenecks found
 | Date | Function (mechaphlowers) | Share of runtime | Fix | Rust? |
 |------|--------------------------|------------------|-----|-------|
 | 2026-10-30 | `BalanceSolver.jacobian` (dense FD) | ~96 % @200 | banded column grouping (×24.8 @200) | no, algorithmic |
 | 2026-10-30 | `Masks.compute_dx_dy_dz` (list masks) | top self-time | numpy masks (×1.5 @200) | no |
 | 2026-10-30 | eager `logger.debug(f"...")` + `check_time` | ~50 % after banded fix | lazy logging, `perfs=False` | no |
-| 2026-10-30 | `model.update()` + `objective_function()` | rest | fused kernel | **candidate** |
+| 2026-10-30 | `LoadModel` dense jacobian (inner solve) | ~98 % with loads after 01–03 | block-diagonal jacobian (×12.9 @100) | no, algorithmic |
+| 2026-10-30 | `Nodes.compute_moment` (`np.cross`) | ~11 % of adjustment | explicit components (×1.12) | no |
+| 2026-10-30 | `model.update()` + `objective_function()`, `find_parameter`, `CatenarySpan.compute_values` | all that is left | fused kernel | **next: Rust** |
