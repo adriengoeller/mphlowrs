@@ -180,6 +180,36 @@ spread over `Masks.compute_dx_dy_dz`, `force_cable`, `proj_d`/`proj_g`, `compute
 `compute_inter`, and it runs ~17 Newton iterations × 7 banded evaluations. The cost is
 almost independent of n, so only a fused kernel for the whole evaluation would help.
 
+## 2026-10-30 — Rust R2: `BalanceSolver.solve` on `BalanceModel` (branch `rust/r2-balance-model-kernel`)
+
+An evaluation of `BalanceModel` (`update()` + `objective_function()`) is a pure function of
+the state vector: `find_parameter` restarts from `approx_parameter`, and the inner `LoadModel`
+solve restarts from load positions recomputed from the state. So the whole Newton loop
+(banded jacobian, linear solve, relaxation) runs in Rust; Python then does one evaluation at
+the final state so the model ends exactly as after the Python loop.
+
+`benches/bench_change_state.py` (ms, best of 3, same Python stack as R1):
+
+| supports | adjustment: Python → R2 | change state, loads: Python → R1 → R2 | no loads: Python → R2 |
+|---------:|------------------------:|--------------------------------------:|----------------------:|
+| 4   | 26.8 → 1.39 (×19) | 19.6 → 9.3 → 2.22 (×8.8) | 3.84 → 1.24 (×3.1) |
+| 20  | 28.5 → 1.57 (×18) | 31.1 → 13.7 → 3.10 (×10) | 4.07 → 1.33 (×3.1) |
+| 50  | 30.3 → 1.80 (×17) | 37.5 → 17.2 → 4.66 (×8.0) | 4.16 → 1.54 (×2.7) |
+| 100 | 35.3 → 2.36 (×15) | 39.6 → 21.0 → 7.30 (×5.4) | 4.39 → 1.54 (×2.9) |
+
+Validation:
+- state checksums identical to 10 digits;
+- `compare_results.py`: 720 output arrays (4–100 supports, with and without loads,
+  3 seeds) within 1.0e-11 relative (state vector), ≤ 3.9e-13 (tensions, sags, slopes);
+- `tests/test_mechaphlowers_balance_solver.py`: full model state after adjustment and change
+  state, same exceptions and logs (chain reversal, `max_iter`, `find_parameter` and load
+  solver failures), Python fallback;
+- upstream suite with R1 + R2 plugged in: 868 passed, no Rust/Python disagreement warning.
+
+Where the time goes now (change state with loads): Rust solve 0.65 ms of 3.1 ms at 20
+supports, 3.75 ms of 7.0 ms at 100. The rest is Python: input extraction, the final
+evaluation (which runs the `LoadModel` solve in Python, with R1), and engine overhead.
+
 ## Bottlenecks found
 | Date | Function (mechaphlowers) | Share of runtime | Fix | Rust? |
 |------|--------------------------|------------------|-----|-------|
@@ -189,4 +219,5 @@ almost independent of n, so only a fused kernel for the whole evaluation would h
 | 2026-10-30 | `LoadModel` dense jacobian (inner solve) | ~98 % with loads after 01–03 | block-diagonal jacobian (×12.9 @100) | no, algorithmic |
 | 2026-10-30 | `Nodes.compute_moment` (`np.cross`) | ~11 % of adjustment | explicit components (×1.12) | no |
 | 2026-10-30 | `find_parameter` + `approx_parameter` (both models) | ~50 % of change state with loads | Rust R1 (×1.8–×2.1 change state with loads) | ✅ Rust |
-| 2026-10-30 | `BalanceModel.update()` + `objective_function()` (nodes, projections, moments) | ~all of adjustment | fused evaluation kernel | candidate R2 |
+| 2026-10-30 | `BalanceModel.update()` + `objective_function()` (nodes, projections, moments) | ~all of adjustment | Rust R2: whole `BalanceSolver.solve` (adjustment ×15–×19, change state ×5.4–×8.8 with loads) | ✅ Rust |
+| 2026-10-30 | final Python evaluation after R2 (incl. Python `LoadModel` solve), input extraction | ~50–80 % of change state with loads after R2 | Rust `LoadModel` solve for that evaluation | candidate |

@@ -21,6 +21,7 @@ dev = [
 [tool.maturin]
 python-source = "python"
 module-name = "mphlowrs._mphlowrs"
+features = ["extension-module"]
 
 [tool.uv.sources]
 mechaphlowers = { path = "vendor/mechaphlowers", editable = true }

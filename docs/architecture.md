@@ -6,7 +6,8 @@ mphlowrs/
 ├── Cargo.toml             # Rust crate, lib `_mphlowrs` (cdylib), release LTO
 ├── pyproject.toml         # maturin build backend, uv dev env
 ├── src/lib.rs             # PyO3 extension module `mphlowrs._mphlowrs` (registers functions)
-├── src/<module>.rs        # ports, one Rust file per mechaphlowers module (e.g. span.rs)
+├── src/<module>.rs        # ports, one Rust file per mechaphlowers module: span.rs, analytical_cubic.rs,
+│                          #   find_parameter_solver.rs, balance_solver.rs, model_ducloux.rs, utils_model_ducloux.rs
 ├── scripts/setup_vendor.sh  # clones mechaphlowers into vendor/ at the pinned commit
 ├── python/mphlowrs/       # Python package: __init__.py re-exports, .pyi stubs, py.typed,
 │                          #   mechaphlowers_patch.py (plugs the kernels into mechaphlowers)

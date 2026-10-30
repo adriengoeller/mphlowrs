@@ -30,6 +30,14 @@ uv run pytest    # runs tests/
 `[tool.uv] cache-keys` in `pyproject.toml` makes `uv sync` / `uv run` rebuild the extension
 whenever `Cargo.toml` or `src/**/*.rs` changes.
 
+Rust unit tests (`#[cfg(test)]` modules) link against the venv's Python. PyO3's
+`extension-module` feature is therefore a crate feature that only maturin enables
+(`[tool.maturin] features`); with it on, `cargo test` cannot link libpython:
+```sh
+PYO3_PYTHON=$PWD/.venv/bin/python cargo test --release
+cargo clippy --release --features extension-module
+```
+
 For a fast edit/compile loop you can also build in place with maturin:
 ```sh
 uv run maturin develop --uv            # debug build (fast compile, slow code)

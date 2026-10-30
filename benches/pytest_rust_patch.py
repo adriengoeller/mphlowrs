@@ -21,4 +21,7 @@ def pytest_unconfigure(config: pytest.Config) -> None:
 
 
 def pytest_report_header(config: pytest.Config) -> str:
-    return "mphlowrs: Rust approx_parameter + find_parameter plugged into mechaphlowers"
+    return (
+        "mphlowrs: Rust kernels plugged into mechaphlowers "
+        "(approx_parameter, find_parameter, BalanceSolver.solve on BalanceModel)"
+    )

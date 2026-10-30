@@ -98,3 +98,18 @@
 - Lesson: never write `contextmanager().__enter__()` without keeping the object. Once it is
   garbage collected, its generator is closed and the `finally` undoes the patch. The first
   `--rust` benchmark silently measured Python.
+
+## 2026-10-30 — Rust R2 (`BalanceSolver.solve` on `BalanceModel`)
+- User decision: R2 on a separate branch, `rust/r2-balance-model-kernel` (from `main`).
+- Scope: the whole Newton loop, not only the jacobian evaluations. Possible because an
+  evaluation is a pure function of the state; it removes every Python evaluation but one.
+- The model is left exactly as after the Python loop by one Python evaluation at the final
+  state, rather than writing back each attribute from Rust: no attribute can be forgotten,
+  at the cost of one evaluation (~0.1 ms without loads, a Python `LoadModel` solve with).
+- Failures are replayed in Python instead of rebuilding exceptions in Rust: same exception
+  types, messages and logs for free. Only `max_iter` and `LinAlgError` are raised by the
+  wrapper. If the replay does not fail, the solve reruns in Python (warning logged).
+- PyO3 `extension-module` became a crate feature enabled by maturin only, so that
+  `cargo test` links (Rust unit tests for the banded solver).
+- Numerical equivalence is checked on outputs (1e-11), not bit-for-bit: the linear solve
+  and the norm summation order differ from LAPACK/BLAS.

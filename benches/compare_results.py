@@ -7,6 +7,7 @@ relative difference per field between two dumps.
 
     uv run python -W ignore benches/compare_results.py dump baseline.npz   # vendor at HEAD
     uv run python -W ignore benches/compare_results.py dump stack.npz      # patches applied
+    uv run python -W ignore benches/compare_results.py dump rust.npz --rust  # + Rust kernels
     uv run python benches/compare_results.py compare baseline.npz stack.npz
 """
 
@@ -62,6 +63,12 @@ def compare(path_a: str, path_b: str) -> None:
 
 if __name__ == "__main__":
     if sys.argv[1] == "dump":
-        dump(sys.argv[2])
+        if "--rust" in sys.argv:  # dump with the mphlowrs kernels plugged in
+            from mphlowrs.mechaphlowers_patch import patched
+
+            with patched():
+                dump(sys.argv[2])
+        else:
+            dump(sys.argv[2])
     else:
         compare(sys.argv[2], sys.argv[3])

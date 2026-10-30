@@ -32,3 +32,12 @@ def find_parameter(
     stop_condition: float,
     max_iter: int,
 ) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64], bool]: ...
+def solve_balance_model(
+    inputs: dict[str, object], initial_state: npt.NDArray[np.float64]
+) -> tuple[
+    npt.NDArray[np.float64],  # state
+    npt.NDArray[np.float64],  # objective (empty on error)
+    str | None,  # error
+    bool,  # error at the first evaluation
+    float,  # norm_d_param (max_iter)
+]: ...
