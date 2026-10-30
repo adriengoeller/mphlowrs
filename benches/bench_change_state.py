@@ -26,15 +26,24 @@ def main() -> None:
     parser.add_argument("--repeat", type=int, default=3)
     parser.add_argument("--no-loads", action="store_true")
     parser.add_argument("--label", default="")
+    parser.add_argument("--rust", action="store_true", help="plug the mphlowrs kernels in")
     args = parser.parse_args()
     with_loads = not args.no_loads
+    if args.rust:
+        from mphlowrs.mechaphlowers_patch import patched
+
+        # keep a reference: a collected context manager closes its generator, which
+        # runs the `finally` that restores the Python implementation
+        rust_patch = patched()
+        rust_patch.__enter__()  # for the whole process
 
     commit = subprocess.run(
         ["git", "-C", str(VENDOR), "rev-parse", "--short", "HEAD"],
         capture_output=True, text=True, check=True,
     ).stdout.strip()
     print(
-        f"# {args.label or 'run'} — loads={with_loads}, mechaphlowers {commit} (+ worktree), "
+        f"# {args.label or 'run'} — loads={with_loads}, rust={args.rust}, "
+        f"mechaphlowers {commit} (+ worktree), "
         f"numpy {np.__version__}, best of {args.repeat}"
     )
     print("| supports | solve_adjustment (ms) | solve_change_state (ms) | state checksum |")

@@ -149,6 +149,37 @@ Upstream test hygiene, found along the way:
 
 None of the upstream profiling scripts exercises `LoadModel`.
 
+## 2026-10-30 — Rust R1: `approx_parameter` + `find_parameter`
+
+Profile of the full Python stack at 100 supports with loads: `LoadModel.update` takes
+~2/3 of the change state, inside `find_parameter` → `_delta` → `CatenarySpan.compute_values` /
+`T_mean`, and `approx_parameter` (cubic). Both models (`BalanceModel` in change state,
+`LoadModel`) call this pair, so it was ported first (see ports.md).
+
+Caveat: cProfile overstated this path (it charges per Python call, and these are many tiny
+calls). Measured without profiler: 72–77 µs per Python `find_parameter` call vs 27–33 µs
+with the Rust kernel (of which 12–18 µs is the Rust call itself and ~14 µs the Python
+`update_models` that restores the model state).
+
+`benches/bench_change_state.py` (ms, best of 3, full Python stack = vendor branch
+`refactor/optim-explicit-cross-product`):
+
+| supports | change state, loads: Python → Rust | no loads: Python → Rust | adjustment |
+|---------:|-----------------------------------:|------------------------:|-----------:|
+| 4   | 19.5 → 9.7 (×2.0)  | 3.84 → 3.05 (×1.26) | 27–29 (unchanged) |
+| 20  | 29.9 → 14.0 (×2.1) | 4.00 → 3.11 (×1.29) | 27–29 (unchanged) |
+| 50  | 36.3 → 18.9 (×1.9) | 4.11 → 3.28 (×1.25) | 29–31 (unchanged) |
+| 100 | 39.5 → 21.5 (×1.8) | 4.37 → 4.11 (×1.06) | 33–35 (unchanged) |
+
+State checksums are identical to 10 digits, and the upstream suite passes with the kernels
+plugged in (868 passed, `benches/pytest_rust_patch.py`).
+
+Adjustment does not call `find_parameter`, so it is now the slowest operation. Its profile
+has no single hot spot: one `BalanceModel.update()` + `objective_function()` is ~0.2 ms,
+spread over `Masks.compute_dx_dy_dz`, `force_cable`, `proj_d`/`proj_g`, `compute_moment`,
+`compute_inter`, and it runs ~17 Newton iterations × 7 banded evaluations. The cost is
+almost independent of n, so only a fused kernel for the whole evaluation would help.
+
 ## Bottlenecks found
 | Date | Function (mechaphlowers) | Share of runtime | Fix | Rust? |
 |------|--------------------------|------------------|-----|-------|
@@ -157,4 +188,5 @@ None of the upstream profiling scripts exercises `LoadModel`.
 | 2026-10-30 | eager `logger.debug(f"...")` + `check_time` | ~50 % after banded fix | lazy logging, `perfs=False` | no |
 | 2026-10-30 | `LoadModel` dense jacobian (inner solve) | ~98 % with loads after 01–03 | block-diagonal jacobian (×12.9 @100) | no, algorithmic |
 | 2026-10-30 | `Nodes.compute_moment` (`np.cross`) | ~11 % of adjustment | explicit components (×1.12) | no |
-| 2026-10-30 | `model.update()` + `objective_function()`, `find_parameter`, `CatenarySpan.compute_values` | all that is left | fused kernel | **next: Rust** |
+| 2026-10-30 | `find_parameter` + `approx_parameter` (both models) | ~50 % of change state with loads | Rust R1 (×1.8–×2.1 change state with loads) | ✅ Rust |
+| 2026-10-30 | `BalanceModel.update()` + `objective_function()` (nodes, projections, moments) | ~all of adjustment | fused evaluation kernel | candidate R2 |

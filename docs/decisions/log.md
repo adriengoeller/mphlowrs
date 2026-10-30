@@ -83,3 +83,18 @@
   `git worktree` of the vendor clone, in the scratchpad), never in the mphlowrs env.
 - `compare_results.py` skips seed 2: it raises `SuspectedChainReversal` at 100 supports
   with loads, both before and after the stack.
+
+## 2026-10-30 — Rust R1 (`approx_parameter` + `find_parameter`)
+- Base for the Rust work: vendor on `refactor/optim-explicit-cross-product` (full Python
+  stack, pushed upstream as stacked draft PRs).
+- Integration for experiments: **monkeypatch** (`mphlowrs.mechaphlowers_patch.patched()`),
+  no change in mechaphlowers. How mechaphlowers would call mphlowrs for real (optional
+  dependency, injection point) is still to decide with the user. Note: upstream has an
+  injection point (`find_param_solver_type`), but `BalanceModel` does not pass it on to
+  `LoadModel`, and `BalanceEngine` does not expose it.
+- Ports reproduce Python **semantics**, including quirks (global stop test ignoring the
+  last element, model state left at the last evaluation). Rule: a port is validated against
+  the Python function (rtol 1e-12) **and** by the upstream suite run with the port plugged in.
+- Lesson: never write `contextmanager().__enter__()` without keeping the object. Once it is
+  garbage collected, its generator is closed and the `finally` undoes the patch. The first
+  `--rust` benchmark silently measured Python.

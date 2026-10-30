@@ -10,6 +10,32 @@ use numpy::{IntoPyArray, PyArray2, PyReadonlyArray1, PyReadonlyArray2};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
+/// Port of `CatenarySpan.compute_values` for one span: returns (x_m, x_n, L).
+/// Operations follow the Python order so results match numpy to the last bits.
+#[inline]
+pub(crate) fn catenary_values(a: f64, b: f64, p: f64) -> (f64, f64, f64) {
+    let x_m = -a / 2.0 + p * (b / (2.0 * p * (a / (2.0 * p)).sinh())).asinh();
+    let x_n = a + x_m;
+    let length = p * ((x_n / p).sinh() - (x_m / p).sinh());
+    (x_m, x_n, length)
+}
+
+/// Port of `CatenarySpan.T_mean` for one span, from the values of `catenary_values`.
+#[inline]
+pub(crate) fn catenary_t_mean(
+    p: f64,
+    k_load: f64,
+    linear_weight: f64,
+    x_m: f64,
+    x_n: f64,
+    length: f64,
+) -> f64 {
+    let a = x_n - x_m;
+    p * k_load * linear_weight * (a + ((2.0 * x_n / p).sinh() - (2.0 * x_m / p).sinh()) * p / 2.0)
+        / length
+        / 2.0
+}
+
 /// Port of `CatenarySpan.z_many_points` for a 2-D `x` of shape (resolution, n_spans):
 /// z[i, j] = p[j] * (cosh(x[i, j] / p[j]) - 1).
 #[pyfunction]

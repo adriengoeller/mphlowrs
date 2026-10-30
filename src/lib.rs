@@ -1,6 +1,9 @@
 use numpy::{IntoPyArray, PyArray1, PyReadonlyArray1};
 use pyo3::prelude::*;
 
+mod analytical_cubic;
+mod find_parameter_solver;
+mod model_ducloux;
 mod span;
 
 /// Version of the compiled extension.
@@ -26,5 +29,7 @@ fn _mphlowrs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(version, m)?)?;
     m.add_function(wrap_pyfunction!(catenary_z, m)?)?;
     m.add_function(wrap_pyfunction!(span::catenary_z_many_points, m)?)?;
+    m.add_function(wrap_pyfunction!(model_ducloux::approx_parameter, m)?)?;
+    m.add_function(wrap_pyfunction!(find_parameter_solver::find_parameter, m)?)?;
     Ok(())
 }
