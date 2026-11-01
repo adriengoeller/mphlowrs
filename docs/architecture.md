@@ -3,14 +3,15 @@
 ```
 mphlowrs/
 ├── CLAUDE.md              # constraints for Claude
-├── Cargo.toml             # Rust crate, lib `_mphlowrs` (cdylib), release LTO
+├── Cargo.toml             # Rust crate, lib `_mphlowrs` (cdylib, abi3-py311), release LTO
+├── Makefile               # local CD: wheels into dist/, checked in build/wheel-check (docs/wheels.md)
 ├── pyproject.toml         # maturin build backend, uv dev env
 ├── src/lib.rs             # PyO3 extension module `mphlowrs._mphlowrs` (registers functions)
 ├── src/<module>.rs        # ports, one Rust file per mechaphlowers module: span.rs, analytical_cubic.rs,
 │                          #   find_parameter_solver.rs, balance_solver.rs, model_ducloux.rs, utils_model_ducloux.rs
 ├── scripts/setup_vendor.sh  # clones mechaphlowers into vendor/ at the pinned commit
 ├── python/mphlowrs/       # Python package: __init__.py re-exports, .pyi stubs, py.typed,
-│                          #   mechaphlowers_patch.py (plugs the kernels into mechaphlowers)
+│                          #   mechaphlowers_patch.py (enable/disable/patched: plugs the kernels into mechaphlowers)
 ├── tests/                 # pytest: smoke + comparisons against mechaphlowers
 ├── benches/               # scenarios, profiling, bench_change_state, patch-stack scripts (stack_bench, validate_stack, make_patch),
 │                          #   validation vs releases (check_release, compare_results, bench_release_notes, run_upstream_profiling_tests), experiments/

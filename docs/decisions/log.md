@@ -9,7 +9,7 @@
 ## 2026-10-30 — Rust package baseline
 - maturin mixed layout (`python/` + private `_mphlowrs` extension) so Python wrappers and
   type stubs can sit next to the compiled code.
-- No `abi3`: wheels are built per Python version. That's fine for a local experiment and
+- No `abi3`: wheels are built per Python version (superseded: abi3 since the wheels entry). That's fine for a local experiment and
   avoids limited-API restrictions on the numpy crate.
 - `requires-python = ">=3.11,<3.15"`; dev env pinned to 3.13 because upstream mechaphlowers
   is `<3.14`. **TODO:** try mechaphlowers on 3.14/3.15 (overriding its upper bound) so the
@@ -113,3 +113,16 @@
   `cargo test` links (Rust unit tests for the banded solver).
 - Numerical equivalence is checked on outputs (1e-11), not bit-for-bit: the linear solve
   and the norm summation order differ from LAPACK/BLAS.
+
+## 2026-10-30 — Wheels: mechaphlowers with an optional Rust dependency
+- User decisions: mphlowrs is an **optional** extra (`mechaphlowers[rust]`); kernels are
+  **on by default** when mphlowrs is installed, off with `MECHAPHLOWERS_RUST=0`; the
+  activation code stays in mphlowrs (`mechaphlowers_patch.enable()`), mechaphlowers only
+  has a small hook (`_rust.py`). Vendor branch: `poc/rust-connexion` from upstream `main`.
+- Local CD in a `Makefile` (user preference over a script), documented in `docs/wheels.md`.
+- abi3 (`abi3-py311`): one mphlowrs wheel for Python 3.11–3.14. Same speed as the
+  cp313 build (r2 bench, 100 supports with loads: 32.0 vs 32.9 ms, same checksum).
+- `mechaphlowers_patch` gained `enable()` / `disable()` / `is_enabled()`; `patched()` now
+  uses them. Import-time activation needs no context manager kept alive.
+- Side effect: on the Rust branch the dev env's editable mechaphlowers enables the kernels,
+  so `tests/conftest.py` forces `MECHAPHLOWERS_RUST=0` for the Python references.

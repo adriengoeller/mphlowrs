@@ -44,6 +44,9 @@ uv run maturin develop --uv            # debug build (fast compile, slow code)
 uv run maturin develop --uv --release  # use this for any benchmark
 ```
 
+## Wheels
+See [wheels.md](wheels.md) (`make cd`).
+
 ## Versions (at creation)
 | Tool | Version |
 |------|---------|

@@ -1,6 +1,8 @@
-"""Plug the Rust kernels into mechaphlowers, for tests and benchmarks.
+"""Plug the Rust kernels into mechaphlowers.
 
-Inside `with patched():`
+`enable()` / `disable()` switch them globally (mechaphlowers calls `enable()` at import
+when installed with the `rust` extra); `with patched():` switches them for a block.
+When enabled:
 - `model_ducloux.approx_parameter` is replaced by `mphlowrs.approx_parameter` (R1);
 - `FindParamSolverForLoop.find_parameter` is replaced by `find_parameter_rust` (R1);
 - `BalanceSolver.solve` is replaced by `balance_solver_solve_rust` (R2): the whole Newton
@@ -246,9 +248,8 @@ def balance_solver_solve_rust(self: BalanceSolver, model) -> None:
     return _python_balance_solve(self, model)
 
 
-@contextlib.contextmanager
-def patched(find_parameter: bool = True, balance_solver: bool = True) -> Iterator[None]:
-    """Use the Rust kernels in mechaphlowers inside the `with` block.
+def enable(find_parameter: bool = True, balance_solver: bool = True) -> None:
+    """Use the Rust kernels in mechaphlowers until `disable()`.
 
     `find_parameter`: R1 kernels (`approx_parameter`, `FindParamSolverForLoop.find_parameter`).
     `balance_solver`: R2 kernel (`BalanceSolver.solve` on a `BalanceModel`).
@@ -258,9 +259,29 @@ def patched(find_parameter: bool = True, balance_solver: bool = True) -> Iterato
         FindParamSolverForLoop.find_parameter = find_parameter_rust
     if balance_solver:
         BalanceSolver.solve = balance_solver_solve_rust
+
+
+def disable() -> None:
+    """Restore the Python implementations."""
+    model_ducloux.approx_parameter = _python_approx_parameter
+    FindParamSolverForLoop.find_parameter = _python_find_parameter
+    BalanceSolver.solve = _python_balance_solve
+
+
+def is_enabled() -> bool:
+    """True if at least one Rust kernel is plugged in."""
+    return (
+        model_ducloux.approx_parameter is approx_parameter_rust
+        or FindParamSolverForLoop.find_parameter is find_parameter_rust
+        or BalanceSolver.solve is balance_solver_solve_rust
+    )
+
+
+@contextlib.contextmanager
+def patched(find_parameter: bool = True, balance_solver: bool = True) -> Iterator[None]:
+    """Use the Rust kernels in mechaphlowers inside the `with` block (see `enable`)."""
+    enable(find_parameter, balance_solver)
     try:
         yield
     finally:
-        model_ducloux.approx_parameter = _python_approx_parameter
-        FindParamSolverForLoop.find_parameter = _python_find_parameter
-        BalanceSolver.solve = _python_balance_solve
+        disable()
